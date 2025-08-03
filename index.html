@@ -1,84 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Upload Image Folder</title>
   <style>
-    #drop-zone {
-      border: 3px dashed #555;
-      padding: 50px;
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h2 { margin-bottom: 10px; }
+    #dropzone {
+      border: 2px dashed #555;
+      padding: 30px;
       text-align: center;
-      margin: 20px;
-      font-family: Arial;
+      color: #333;
+      margin-bottom: 10px;
       cursor: pointer;
     }
-    #submit-btn { padding: 10px 20px; margin: 10px; }
-    #progress-container {
-      width: 100%; background: #ddd; margin: 10px 0;
-    }
-    #progress-bar {
-      height: 20px; background: green; width: 0%;
-    }
+    #dropzone.dragover { background: #f0f0f0; }
+    #progressBarContainer { width: 100%; background: #ccc; height: 20px; margin-top: 10px; }
+    #progressBar { width: 0%; height: 20px; background: green; transition: width 0.3s; }
     #log {
-      background: #111; color: #0f0; font-family: monospace;
-      padding: 10px; margin-top: 10px; max-height: 300px; overflow-y: auto;
-      white-space: pre-line;
+      background: #111;
+      color: #0f0;
+      padding: 10px;
+      margin-top: 10px;
+      font-family: monospace;
+      height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
     }
+    #status { margin-top: 10px; font-weight: bold; }
+    button { padding: 8px 15px; margin-top: 10px; }
   </style>
 </head>
 <body>
-  <h1>Upload Image Folder</h1>
-  <div id="drop-zone">Drag & Drop a Folder Here or Click to Select</div>
-  <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none;">
-  <button id="submit-btn" disabled>Upload</button>
 
-  <div id="progress-container">
-    <div id="progress-bar"></div>
+  <h2>Upload Image Folder</h2>
+  <div id="dropzone">Drag & Drop a Folder Here or Click to Select</div>
+  <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+  <button id="submitBtn" disabled>Upload</button>
+
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
   </div>
-  <p id="status"></p>
+  <div id="status"></div>
   <div id="log"></div>
 
   <script>
+    const dropzone = document.getElementById('dropzone');
+    const folderInput = document.getElementById('folderInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const status = document.getElementById('status');
+    const log = document.getElementById('log');
+    const progressBar = document.getElementById('progressBar');
+
+    let files = [];
     const repoOwner = "ampedcoreglobal";
     const repoName = "Image_Hosting_1";
     const branch = "main";
-    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // Replace with your token
-
-    const dropZone = document.getElementById('drop-zone');
-    const folderInput = document.getElementById('folder-input');
-    const submitBtn = document.getElementById('submit-btn');
-    const status = document.getElementById('status');
-    const progressBar = document.getElementById('progress-bar');
-    const log = document.getElementById('log');
-
-    let files = [];
+    const token = "YOUR_GITHUB_TOKEN_HERE"; // 🔑 Replace with your token
 
     function logMessage(msg) {
       log.innerText += msg + "\n";
       log.scrollTop = log.scrollHeight;
     }
 
-    dropZone.addEventListener('click', () => folderInput.click());
-    folderInput.addEventListener('change', e => {
-      files = [...e.target.files];
-      status.innerText = `Selected ${files.length} files.`;
+    function handleFiles(selectedFiles) {
+      files = Array.from(selectedFiles);
       submitBtn.disabled = files.length === 0;
+      logMessage(`📂 Selected ${files.length} files`);
+    }
+
+    dropzone.addEventListener('click', () => folderInput.click());
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
     });
 
-    dropZone.addEventListener('dragover', e => {
-      e.preventDefault();
-      dropZone.style.borderColor = "green";
-    });
-    dropZone.addEventListener('dragleave', e => {
-      dropZone.style.borderColor = "#555";
-    });
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      files = [...e.dataTransfer.files];
-      status.innerText = `Dropped ${files.length} files.`;
-      submitBtn.disabled = files.length === 0;
-      dropZone.style.borderColor = "#555";
-    });
+    folderInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
     submitBtn.addEventListener('click', async () => {
       if (!files.length) return alert("No folder selected");
@@ -90,16 +94,24 @@
       let count = 0;
       let uploaded = 0;
       let folders = {};
+      let folderImageCount = {};
 
       for (let file of files) {
+        if (file.name.startsWith('.') || file.name === '.DS_Store') {
+          logMessage(`[SKIP] ${file.webkitRelativePath}`);
+          continue;
+        }
+
         count++;
         const folderName = file.webkitRelativePath.split("/")[0];
         if (!folders[folderName]) {
           folders[folderName] = true;
+          folderImageCount[folderName] = 0;
           logMessage(`\n📂 Processing folder: ${folderName}`);
         }
 
         logMessage(`[UPLOAD] ${file.webkitRelativePath}`);
+        folderImageCount[folderName]++;
 
         const arrayBuffer = await file.arrayBuffer();
         const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
@@ -122,6 +134,14 @@
         let progress = Math.round((count / files.length) * 100);
         progressBar.style.width = progress + "%";
         status.innerText = `Uploading... ${count}/${files.length}`;
+
+        // ✅ Force UI refresh
+        await new Promise(r => setTimeout(r, 0));
+
+        // ✅ If this is the last file in the folder, print summary
+        if (count === files.length || !files.some(f => f.webkitRelativePath.startsWith(folderName) && !f.name.startsWith('.') && f !== file)) {
+          logMessage(`✅ SKU ${folderName}: ${folderImageCount[folderName]} images uploaded successfully`);
+        }
       }
 
       logMessage(`\n📸 Processed ${files.length} images.`);
@@ -130,5 +150,6 @@
       submitBtn.disabled = false;
     });
   </script>
+
 </body>
 </html>
