@@ -1,26 +1,27 @@
 name: Process Uploaded Images
 
 on:
-  push:
-    paths:
-      - 'source_images/**'
+  workflow_dispatch:
 
 jobs:
   process:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-        with:
-          lfs: true
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+      with:
+        lfs: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
 
-      - name: Install Dependencies
-        run: pip install pillow
+    - name: Install Dependencies
+      run: |
+        pip install pillow
 
-      - name: Run Image Processor
-        run: python upload_images_to_github.py
+    - name: Run Image Processor
+      run: |
+        python upload_images_to_github.py
