@@ -3,73 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload Images to GitHub</title>
+  <title>Upload Image Folder</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f3f3f3; }
-    h1 { color: #222; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h2 { font-size: 22px; margin-bottom: 10px; }
     #dropzone {
-      border: 2px dashed #666; padding: 40px; text-align: center;
-      background: #fff; margin-bottom: 20px; border-radius: 8px;
+      border: 2px dashed #666;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 10px;
     }
-    #fileInput { display: none; }
-    #progressBarContainer { width: 100%; background: #ddd; height: 20px; border-radius: 4px; margin: 10px 0; }
-    #progressBar { height: 100%; width: 0%; background: #4caf50; border-radius: 4px; transition: width 0.3s; }
-    #status { margin-top: 10px; font-weight: bold; }
-    #log { white-space: pre-wrap; background: #111; color: #0f0; padding: 10px; border-radius: 4px; height: 300px; overflow-y: auto; font-family: monospace; }
-    button { padding: 10px 20px; margin: 5px; }
+    #log {
+      background: #111;
+      color: #0f0;
+      padding: 10px;
+      white-space: pre-wrap;
+      height: 300px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+    #progressBar {
+      width: 0%;
+      height: 10px;
+      background: green;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
-
-  <h1>Upload Images to GitHub</h1>
-  <div id="dropzone">Drag and drop a folder here or <button onclick="fileInput.click()">Select Folder</button></div>
-  <input type="file" id="fileInput" webkitdirectory directory multiple>
-
-  <div id="progressBarContainer"><div id="progressBar"></div></div>
-  <div id="status">No upload in progress</div>
-  <button id="submitBtn">Upload</button>
-
-  <h3>Upload Log</h3>
+  <h2>Upload Image Folder</h2>
+  <div id="dropzone">Drag & Drop a Folder Here or Click to Select</div>
+  <input type="file" id="folderInput" webkitdirectory multiple hidden>
+  <button id="submitBtn" disabled>Upload</button>
+  <div style="background:#ccc;height:10px;width:100%;margin-top:10px;">
+    <div id="progressBar"></div>
+  </div>
+  <p id="status">Idle</p>
   <div id="log"></div>
 
   <script>
+    const dropzone = document.getElementById('dropzone');
+    const folderInput = document.getElementById('folderInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const log = document.getElementById('log');
+    const status = document.getElementById('status');
+    const progressBar = document.getElementById('progressBar');
+
     const repoOwner = "ampedcoreglobal";
     const repoName = "Image_Hosting_1";
     const branch = "main";
-    const token = "YOUR_GITHUB_TOKEN"; // 🔑 Personal Access Token with repo rights
+    const token = "YOUR_GITHUB_TOKEN"; // Replace with real token or serverless secret
 
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    const submitBtn = document.getElementById('submitBtn');
-    const progressBar = document.getElementById('progressBar');
-    const status = document.getElementById('status');
-    const log = document.getElementById('log');
     let files = [];
 
     function logMessage(msg) {
-      log.innerText += msg + "\n";
+      log.textContent += msg + "\n";
       log.scrollTop = log.scrollHeight;
     }
 
-    dropzone.addEventListener('dragover', (e) => {
+    dropzone.addEventListener('click', () => folderInput.click());
+
+    dropzone.addEventListener('dragover', e => {
       e.preventDefault();
-      dropzone.style.borderColor = "#4caf50";
+      dropzone.style.background = "#eef";
     });
 
     dropzone.addEventListener('dragleave', () => {
-      dropzone.style.borderColor = "#666";
+      dropzone.style.background = "";
     });
 
-    dropzone.addEventListener('drop', (e) => {
+    dropzone.addEventListener('drop', e => {
       e.preventDefault();
       files = [...e.dataTransfer.files];
-      dropzone.style.borderColor = "#666";
-      status.innerText = `${files.length} files ready to upload`;
+      submitBtn.disabled = !files.length;
+      dropzone.style.background = "";
+      status.innerText = `${files.length} files ready.`;
     });
 
-    fileInput.addEventListener('change', (e) => {
+    folderInput.addEventListener('change', e => {
       files = [...e.target.files];
-      status.innerText = `${files.length} files ready to upload`;
+      submitBtn.disabled = !files.length;
+      status.innerText = `${files.length} files ready.`;
     });
 
     submitBtn.addEventListener('click', async () => {
@@ -96,37 +110,44 @@
           logMessage(`\n📂 Processing folder: ${folderName}`);
         }
 
+        // ✅ Log immediately like terminal
         logMessage(`[UPLOAD] ${file.webkitRelativePath}`);
 
         const arrayBuffer = await file.arrayBuffer();
         const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
         const path = `source_images/${file.webkitRelativePath}`;
 
-        await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`, {
-          method: "PUT",
-          headers: {
-            "Authorization": `token ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            message: `Upload ${file.name}`,
-            content: content,
-            branch: branch
-          })
-        });
+        try {
+          await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`, {
+            method: "PUT",
+            headers: {
+              "Authorization": `token ${token}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              message: `Upload ${file.name}`,
+              content: content,
+              branch: branch
+            })
+          });
 
-        uploaded++;
+          uploaded++;
+        } catch (err) {
+          logMessage(`❌ ERROR uploading ${file.name}: ${err}`);
+        }
+
         let progress = Math.round((count / files.length) * 100);
         progressBar.style.width = progress + "%";
         status.innerText = `Uploading... ${count}/${files.length}`;
 
-        await new Promise(r => setTimeout(r, 0));
+        // ✅ Force UI update
+        await new Promise(r => setTimeout(r, 50));
       }
 
       logMessage(`\n📸 Uploaded ${uploaded} images for SKUs: ${Object.keys(folders).join(", ")}`);
       status.innerText = `✅ Upload complete! ${uploaded} images.`;
 
-      // ✅ Trigger GitHub Action to process images
+      // ✅ Trigger GitHub Action after upload
       logMessage("\n🔄 Triggering GitHub Action to process images...");
       await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
         method: "POST",
@@ -140,6 +161,5 @@
       submitBtn.disabled = false;
     });
   </script>
-
 </body>
 </html>
