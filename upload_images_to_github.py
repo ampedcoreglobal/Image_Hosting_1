@@ -7,10 +7,9 @@ from PIL import Image, ImageChops
 # === Detect if running in GitHub Actions ===
 IS_CI = os.getenv("GITHUB_ACTIONS") == "true"
 BASE_DIR = Path(os.getenv("GITHUB_WORKSPACE", ".")) if IS_CI else Path("/Users/kj/Desktop/Image_Hosting_1")
-
-LOCAL_REPO = BASE_DIR
+LOCAL_REPO = Path("/Users/kj/Desktop/Image_Hosting_1")
 IMAGES_DIR = LOCAL_REPO / "images"
-SOURCE_DIR = LOCAL_REPO / "source_images"
+SOURCE_DIR = Path("/Users/kj/Desktop/source_images")
 REMOTE_URL = "https://github.com/ampedcoreglobal/Image_Hosting_1.git"
 
 TARGET_WIDTH = 3000
