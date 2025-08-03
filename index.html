@@ -1,105 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Upload Image Folder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Images to GitHub</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    #drop-zone { border: 2px dashed #666; padding: 40px; text-align: center; cursor: pointer; }
-    #log { background: #111; color: #0f0; padding: 10px; font-family: monospace; height: 300px; overflow-y: auto; margin-top: 10px; }
-    #progress-bar { height: 20px; background: green; width: 0%; transition: width 0.3s; }
-    #progress-container { background: #ccc; width: 100%; height: 20px; margin-top: 10px; }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f3f3f3; }
+    h1 { color: #222; }
+    #dropzone {
+      border: 2px dashed #666; padding: 40px; text-align: center;
+      background: #fff; margin-bottom: 20px; border-radius: 8px;
+    }
+    #fileInput { display: none; }
+    #progressBarContainer { width: 100%; background: #ddd; height: 20px; border-radius: 4px; margin: 10px 0; }
+    #progressBar { height: 100%; width: 0%; background: #4caf50; border-radius: 4px; transition: width 0.3s; }
+    #status { margin-top: 10px; font-weight: bold; }
+    #log { white-space: pre-wrap; background: #111; color: #0f0; padding: 10px; border-radius: 4px; height: 300px; overflow-y: auto; font-family: monospace; }
+    button { padding: 10px 20px; margin: 5px; }
   </style>
 </head>
 <body>
-  <h2>Upload Image Folder</h2>
-  <div id="drop-zone">Drag & Drop a Folder Here or Click to Select</div>
-  <input type="file" id="fileInput" webkitdirectory multiple hidden>
-  <button id="uploadBtn">Upload</button>
-  <div id="progress-container"><div id="progress-bar"></div></div>
-  <div id="status">Waiting...</div>
-  <pre id="log"></pre>
 
-<script>
-const repoOwner = "ampedcoreglobal";
-const repoName = "Image_Hosting_1";
-const branch = "main";
-const token = "YOUR_GITHUB_TOKEN_HERE"; // Replace with your PAT
+  <h1>Upload Images to GitHub</h1>
+  <div id="dropzone">Drag and drop a folder here or <button onclick="fileInput.click()">Select Folder</button></div>
+  <input type="file" id="fileInput" webkitdirectory directory multiple>
 
-let files = [];
+  <div id="progressBarContainer"><div id="progressBar"></div></div>
+  <div id="status">No upload in progress</div>
+  <button id="submitBtn">Upload</button>
 
-const dropZone = document.getElementById("drop-zone");
-const fileInput = document.getElementById("fileInput");
-const uploadBtn = document.getElementById("uploadBtn");
-const log = document.getElementById("log");
-const status = document.getElementById("status");
-const progressBar = document.getElementById("progress-bar");
+  <h3>Upload Log</h3>
+  <div id="log"></div>
 
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.background="#eee"; });
-dropZone.addEventListener('dragleave', () => dropZone.style.background="");
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  files = Array.from(e.dataTransfer.files);
-  logMessage(`📂 Selected ${files.length} files`);
-  dropZone.style.background="";
-});
-fileInput.addEventListener('change', e => {
-  files = Array.from(e.target.files);
-  logMessage(`📂 Selected ${files.length} files`);
-});
+  <script>
+    const repoOwner = "ampedcoreglobal";
+    const repoName = "Image_Hosting_1";
+    const branch = "main";
+    const token = "YOUR_GITHUB_TOKEN"; // 🔑 Personal Access Token with repo rights
 
-uploadBtn.addEventListener('click', async () => {
-  if (!files.length) return alert("No folder selected");
-  uploadBtn.disabled = true;
-  status.innerText = "Uploading...";
-  log.innerText = "";
-  progressBar.style.width = "0%";
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const progressBar = document.getElementById('progressBar');
+    const status = document.getElementById('status');
+    const log = document.getElementById('log');
+    let files = [];
 
-  let count = 0;
-  for (let file of files) {
-    if (file.name.startsWith('.') || file.name === '.DS_Store') continue;
-    const arrayBuffer = await file.arrayBuffer();
-    const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    const path = `source_images/${file.webkitRelativePath}`;
+    function logMessage(msg) {
+      log.innerText += msg + "\n";
+      log.scrollTop = log.scrollHeight;
+    }
 
-    await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`, {
-      method: "PUT",
-      headers: {
-        "Authorization": `token ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        message: `Upload ${file.name}`,
-        content: content,
-        branch: branch
-      })
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "#4caf50";
     });
 
-    count++;
-    progressBar.style.width = `${(count/files.length)*100}%`;
-    logMessage(`[UPLOAD] ${file.webkitRelativePath}`);
-  }
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.style.borderColor = "#666";
+    });
 
-  status.innerText = "✅ Files uploaded. Triggering processing...";
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      files = [...e.dataTransfer.files];
+      dropzone.style.borderColor = "#666";
+      status.innerText = `${files.length} files ready to upload`;
+    });
 
-  await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/process_images.yml/dispatches`, {
-    method: "POST",
-    headers: {
-      "Authorization": `token ${token}`,
-      "Accept": "application/vnd.github.v3+json"
-    },
-    body: JSON.stringify({ ref: branch })
-  });
+    fileInput.addEventListener('change', (e) => {
+      files = [...e.target.files];
+      status.innerText = `${files.length} files ready to upload`;
+    });
 
-  logMessage("🚀 Processing started on GitHub Actions.");
-  uploadBtn.disabled = false;
-});
+    submitBtn.addEventListener('click', async () => {
+      if (!files.length) return alert("No folder selected");
+      submitBtn.disabled = true;
+      status.innerText = "Uploading...";
+      log.innerText = "";
+      progressBar.style.width = "0%";
 
-function logMessage(msg){
-  log.textContent += msg + "\n";
-  log.scrollTop = log.scrollHeight;
-}
-</script>
+      let count = 0;
+      let uploaded = 0;
+      let folders = {};
+
+      for (let file of files) {
+        if (file.name.startsWith('.') || file.name === '.DS_Store') {
+          logMessage(`[SKIP] ${file.webkitRelativePath}`);
+          continue;
+        }
+
+        count++;
+        const folderName = file.webkitRelativePath.split("/")[0];
+        if (!folders[folderName]) {
+          folders[folderName] = true;
+          logMessage(`\n📂 Processing folder: ${folderName}`);
+        }
+
+        logMessage(`[UPLOAD] ${file.webkitRelativePath}`);
+
+        const arrayBuffer = await file.arrayBuffer();
+        const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const path = `source_images/${file.webkitRelativePath}`;
+
+        await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`, {
+          method: "PUT",
+          headers: {
+            "Authorization": `token ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: `Upload ${file.name}`,
+            content: content,
+            branch: branch
+          })
+        });
+
+        uploaded++;
+        let progress = Math.round((count / files.length) * 100);
+        progressBar.style.width = progress + "%";
+        status.innerText = `Uploading... ${count}/${files.length}`;
+
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      logMessage(`\n📸 Uploaded ${uploaded} images for SKUs: ${Object.keys(folders).join(", ")}`);
+      status.innerText = `✅ Upload complete! ${uploaded} images.`;
+
+      // ✅ Trigger GitHub Action to process images
+      logMessage("\n🔄 Triggering GitHub Action to process images...");
+      await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
+        method: "POST",
+        headers: {
+          "Authorization": `token ${token}`,
+          "Accept": "application/vnd.github.everest-preview+json"
+        },
+        body: JSON.stringify({ event_type: "process-images" })
+      });
+      logMessage("✅ GitHub Action triggered.");
+      submitBtn.disabled = false;
+    });
+  </script>
+
 </body>
 </html>
