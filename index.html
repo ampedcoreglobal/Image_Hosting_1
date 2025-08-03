@@ -2,22 +2,38 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Image Uploader</title>
+  <title>Image Uploader & Processor</title>
   <style>
-    body { font-family: Arial; background: #111; color: #eee; }
+    body { font-family: Arial; background: #111; color: #eee; text-align: center; }
+    h2 { color: #4caf50; }
     #dropzone {
-      border: 2px dashed #4caf50; padding: 30px; margin: 20px;
-      text-align: center; cursor: pointer; background: #222;
+      border: 2px dashed #4caf50; padding: 30px; margin: 20px auto;
+      width: 60%; background: #222; cursor: pointer;
     }
-    #log { background: #000; color: #0f0; padding: 10px; height: 300px; overflow-y: auto; white-space: pre-wrap; }
-    button { margin-top: 10px; padding: 10px 20px; background: #4caf50; border: none; color: white; cursor: pointer; }
+    #log {
+      background: #000; color: #0f0; padding: 10px;
+      height: 300px; overflow-y: auto; white-space: pre-wrap;
+      width: 80%; margin: 20px auto; text-align: left;
+    }
+    #progress {
+      height: 20px; background: #4caf50; width: 0%;
+      transition: width 0.3s;
+    }
+    #progress-container {
+      width: 80%; margin: 10px auto; background: #333;
+    }
+    button {
+      padding: 10px 20px; background: #4caf50; border: none;
+      color: white; cursor: pointer; margin-top: 10px;
+    }
     button:disabled { background: #666; }
   </style>
 </head>
 <body>
   <h2>Drag & Drop Images Folder</h2>
-  <div id="dropzone">Drop files here or click to select</div>
+  <div id="dropzone">Drop folder here or click to select</div>
   <input type="file" id="fileInput" webkitdirectory directory multiple style="display:none">
+  <div id="progress-container"><div id="progress"></div></div>
   <button id="uploadBtn">Upload & Process</button>
   <h3>Log:</h3>
   <div id="log"></div>
@@ -27,10 +43,11 @@
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
     const log = document.getElementById('log');
+    const progressBar = document.getElementById('progress');
     let files = [];
 
     function logMessage(msg) {
-      log.textContent += msg + "\n";
+      log.textContent += msg;
       log.scrollTop = log.scrollHeight;
     }
 
@@ -39,30 +56,43 @@
     dropzone.addEventListener('dragleave', () => dropzone.style.background = '#222');
     dropzone.addEventListener('drop', e => {
       e.preventDefault(); files = [...e.dataTransfer.files];
-      logMessage(`📂 ${files.length} files ready`);
+      logMessage(`📂 ${files.length} files ready\n`);
     });
     fileInput.addEventListener('change', () => {
       files = [...fileInput.files];
-      logMessage(`📂 ${files.length} files selected`);
+      logMessage(`📂 ${files.length} files selected\n`);
     });
 
     uploadBtn.addEventListener('click', async () => {
       if (!files.length) return alert("No files selected.");
-      uploadBtn.disabled = true; logMessage("⬆️ Uploading files...");
+      uploadBtn.disabled = true; logMessage("⬆️ Uploading files...\n");
 
       const formData = new FormData();
       files.forEach(f => formData.append('files', f));
-      await fetch('/upload', { method: 'POST', body: formData });
-      logMessage("✅ Files uploaded. Starting processing...");
+
+      const uploadRes = await fetch('/upload', { method: 'POST', body: formData });
+      if (!uploadRes.ok) {
+        logMessage("❌ Upload failed.\n");
+        uploadBtn.disabled = false;
+        return;
+      }
+      logMessage("✅ Files uploaded. Starting processing...\n");
 
       const res = await fetch('/process', { method: 'POST' });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let receivedLength = 0;
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        logMessage(decoder.decode(value));
+        const chunk = decoder.decode(value);
+        logMessage(chunk);
+        receivedLength += chunk.length;
+        const percent = Math.min(100, Math.round((receivedLength / (files.length * 500)) * 100));
+        progressBar.style.width = percent + "%";
       }
+
       uploadBtn.disabled = false;
     });
   </script>
