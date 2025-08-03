@@ -11,37 +11,58 @@
       margin: 20px;
       font-family: Arial;
     }
-    #submit-btn { padding: 10px 20px; margin: 10px; }
+    #folder-btn, #submit-btn { padding: 10px 20px; margin: 10px; }
   </style>
 </head>
 <body>
   <h1>Upload Image Folder</h1>
-  <div id="drop-zone">Click to Select a Folder</div>
+  <div id="drop-zone">Drag & Drop a Folder Here or Click to Select</div>
   <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none;">
-  <button id="submit-btn" disabled>Submit</button>
+  <button id="submit-btn" disabled>Upload</button>
+  <p id="status"></p>
 
   <script>
     const repoOwner = "ampedcoreglobal";
     const repoName = "Image_Hosting_1";
     const branch = "main";
-    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // replace with PAT
+    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // replace with your PAT
 
     const dropZone = document.getElementById('drop-zone');
     const folderInput = document.getElementById('folder-input');
     const submitBtn = document.getElementById('submit-btn');
+    const status = document.getElementById('status');
+
     let files = [];
 
+    // Click → Open folder picker
     dropZone.addEventListener('click', () => folderInput.click());
+
     folderInput.addEventListener('change', e => {
       files = [...e.target.files];
-      dropZone.innerText = files.length + ' files ready';
+      status.innerText = `Selected ${files.length} files.`;
       submitBtn.disabled = files.length === 0;
     });
 
+    // Drag & Drop handler
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.style.borderColor = "green";
+    });
+    dropZone.addEventListener('dragleave', e => {
+      dropZone.style.borderColor = "#555";
+    });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      files = [...e.dataTransfer.files];
+      status.innerText = `Dropped ${files.length} files.`;
+      submitBtn.disabled = files.length === 0;
+      dropZone.style.borderColor = "#555";
+    });
+
     submitBtn.addEventListener('click', async () => {
-      if (!files.length) return alert("No files selected");
+      if (!files.length) return alert("No folder selected");
       submitBtn.disabled = true;
-      submitBtn.innerText = "Uploading...";
+      status.innerText = "Uploading...";
 
       for (let file of files) {
         const arrayBuffer = await file.arrayBuffer();
@@ -62,8 +83,8 @@
         });
       }
 
-      alert("Upload complete! Processing started.");
-      submitBtn.innerText = "Submit";
+      status.innerText = "✅ Upload complete! Processing started.";
+      submitBtn.innerText = "Upload";
       submitBtn.disabled = false;
     });
   </script>
