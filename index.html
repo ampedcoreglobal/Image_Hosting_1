@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Upload Images</title>
+  <style>
+    #drop-zone {
+      border: 3px dashed #555;
+      padding: 50px;
+      text-align: center;
+      margin: 20px;
+      font-family: Arial;
+    }
+    #submit-btn { padding: 10px 20px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Upload Images to Repo</h1>
+  <div id="drop-zone">Drag & Drop Images Here or Click</div>
+  <input type="file" id="file-input" multiple style="display:none;">
+  <button id="submit-btn" disabled>Submit</button>
+
+  <script>
+    const repoOwner = "ampedcoreglobal";
+    const repoName = "Image_Hosting_1";
+    const branch = "main";
+    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // GH PAT with repo access
+
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const submitBtn = document.getElementById('submit-btn');
+    let files = [];
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => e.preventDefault());
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      files = [...e.dataTransfer.files];
+      dropZone.innerText = files.length + ' files ready';
+      submitBtn.disabled = files.length === 0;
+    });
+    fileInput.addEventListener('change', e => {
+      files = [...e.target.files];
+      dropZone.innerText = files.length + ' files ready';
+      submitBtn.disabled = files.length === 0;
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      if (!files.length) return alert("No files selected");
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Uploading...";
+
+      for (let file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const path = `source_images/${file.name}`;
+
+        await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`, {
+          method: "PUT",
+          headers: {
+            "Authorization": `token ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: `Upload ${file.name}`,
+            content: content,
+            branch: branch
+          })
+        });
+      }
+
+      alert("Upload complete! The images are being processed.");
+      submitBtn.innerText = "Submit";
+      submitBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>
