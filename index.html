@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Upload Images</title>
+  <title>Upload Image Folder</title>
   <style>
     #drop-zone {
       border: 3px dashed #555;
@@ -15,31 +15,24 @@
   </style>
 </head>
 <body>
-  <h1>Upload Images to Repo</h1>
-  <div id="drop-zone">Drag & Drop Images Here or Click</div>
-  <input type="file" id="file-input" multiple style="display:none;">
+  <h1>Upload Image Folder</h1>
+  <div id="drop-zone">Click to Select a Folder</div>
+  <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none;">
   <button id="submit-btn" disabled>Submit</button>
 
   <script>
     const repoOwner = "ampedcoreglobal";
     const repoName = "Image_Hosting_1";
     const branch = "main";
-    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // GH PAT with repo access
+    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // replace with PAT
 
     const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
+    const folderInput = document.getElementById('folder-input');
     const submitBtn = document.getElementById('submit-btn');
     let files = [];
 
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', e => e.preventDefault());
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      files = [...e.dataTransfer.files];
-      dropZone.innerText = files.length + ' files ready';
-      submitBtn.disabled = files.length === 0;
-    });
-    fileInput.addEventListener('change', e => {
+    dropZone.addEventListener('click', () => folderInput.click());
+    folderInput.addEventListener('change', e => {
       files = [...e.target.files];
       dropZone.innerText = files.length + ' files ready';
       submitBtn.disabled = files.length === 0;
@@ -53,7 +46,7 @@
       for (let file of files) {
         const arrayBuffer = await file.arrayBuffer();
         const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        const path = `source_images/${file.name}`;
+        const path = `source_images/${file.webkitRelativePath}`;
 
         await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`, {
           method: "PUT",
@@ -69,7 +62,7 @@
         });
       }
 
-      alert("Upload complete! The images are being processed.");
+      alert("Upload complete! Processing started.");
       submitBtn.innerText = "Submit";
       submitBtn.disabled = false;
     });
