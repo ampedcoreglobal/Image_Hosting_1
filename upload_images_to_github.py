@@ -8,7 +8,7 @@ from PIL import Image, ImageChops
 IS_CI = os.getenv("GITHUB_ACTIONS") == "true"
 BASE_DIR = Path(os.getenv("GITHUB_WORKSPACE", ".")) if IS_CI else Path("/Users/kj/Desktop/Image_Hosting_1")
 # === CONFIG ===
-LOCAL_REPO = Path(".")  # current Replit workspace
+LOCAL_REPO = Path(".")
 IMAGES_DIR = LOCAL_REPO / "images"
 SOURCE_DIR = LOCAL_REPO / "source_images"
 REMOTE_URL = "https://github.com/ampedcoreglobal/Image_Hosting_1.git"
