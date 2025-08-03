@@ -64,7 +64,8 @@ def copy_source_to_staging():
     sku_counts = {}
     for root, dirs, files in os.walk(SOURCE_DIR):
         rel_path = Path(root).relative_to(SOURCE_DIR)
-        dest_dir = IMAGES_DIR / rel_path
+        sku_name = rel_path.name if rel_path != Path('.') else None
+        dest_dir = IMAGES_DIR / sku_name if sku_name else IMAGES_DIR
         dest_dir.mkdir(parents=True, exist_ok=True)
 
         for f in files:
