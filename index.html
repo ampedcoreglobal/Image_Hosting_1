@@ -10,8 +10,19 @@
       text-align: center;
       margin: 20px;
       font-family: Arial;
+      cursor: pointer;
     }
-    #folder-btn, #submit-btn { padding: 10px 20px; margin: 10px; }
+    #submit-btn { padding: 10px 20px; margin: 10px; }
+    #progress-container {
+      width: 100%; background: #ddd; margin: 10px 0;
+    }
+    #progress-bar {
+      height: 20px; background: green; width: 0%;
+    }
+    #log {
+      background: #111; color: #0f0; font-family: monospace;
+      padding: 10px; margin-top: 10px; max-height: 200px; overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -19,31 +30,40 @@
   <div id="drop-zone">Drag & Drop a Folder Here or Click to Select</div>
   <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none;">
   <button id="submit-btn" disabled>Upload</button>
+
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
   <p id="status"></p>
+  <div id="log"></div>
 
   <script>
     const repoOwner = "ampedcoreglobal";
     const repoName = "Image_Hosting_1";
     const branch = "main";
-    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // replace with your PAT
+    const token = "YOUR_PERSONAL_ACCESS_TOKEN"; // Replace with PAT
 
     const dropZone = document.getElementById('drop-zone');
     const folderInput = document.getElementById('folder-input');
     const submitBtn = document.getElementById('submit-btn');
     const status = document.getElementById('status');
+    const progressBar = document.getElementById('progress-bar');
+    const log = document.getElementById('log');
 
     let files = [];
 
-    // Click → Open folder picker
-    dropZone.addEventListener('click', () => folderInput.click());
+    function logMessage(msg) {
+      log.innerText += msg + "\n";
+      log.scrollTop = log.scrollHeight;
+    }
 
+    dropZone.addEventListener('click', () => folderInput.click());
     folderInput.addEventListener('change', e => {
       files = [...e.target.files];
       status.innerText = `Selected ${files.length} files.`;
       submitBtn.disabled = files.length === 0;
     });
 
-    // Drag & Drop handler
     dropZone.addEventListener('dragover', e => {
       e.preventDefault();
       dropZone.style.borderColor = "green";
@@ -63,8 +83,14 @@
       if (!files.length) return alert("No folder selected");
       submitBtn.disabled = true;
       status.innerText = "Uploading...";
+      log.innerText = "";
+      progressBar.style.width = "0%";
 
+      let count = 0;
       for (let file of files) {
+        count++;
+        logMessage(`[UPLOAD] ${file.webkitRelativePath}`);
+
         const arrayBuffer = await file.arrayBuffer();
         const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
         const path = `source_images/${file.webkitRelativePath}`;
@@ -81,10 +107,13 @@
             branch: branch
           })
         });
+
+        let progress = Math.round((count / files.length) * 100);
+        progressBar.style.width = progress + "%";
       }
 
-      status.innerText = "✅ Upload complete! Processing started.";
-      submitBtn.innerText = "Upload";
+      status.innerText = `✅ Uploaded ${files.length} files. Processing started...`;
+      logMessage("✅ Upload complete!");
       submitBtn.disabled = false;
     });
   </script>
