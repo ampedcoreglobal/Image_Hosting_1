@@ -1,59 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload Image Folder</title>
+  <title>Image Uploader</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    h2 { font-size: 22px; margin-bottom: 10px; }
+    body { font-family: Arial; background: #111; color: #eee; }
     #dropzone {
-      border: 2px dashed #666;
-      padding: 20px;
-      text-align: center;
-      margin-bottom: 10px;
+      border: 2px dashed #4caf50; padding: 30px; margin: 20px;
+      text-align: center; cursor: pointer; background: #222;
     }
-    #log {
-      background: #111;
-      color: #0f0;
-      padding: 10px;
-      white-space: pre-wrap;
-      height: 300px;
-      overflow-y: auto;
-      margin-top: 10px;
-    }
-    #progressBar {
-      width: 0%;
-      height: 10px;
-      background: green;
-      margin-top: 5px;
-    }
+    #log { background: #000; color: #0f0; padding: 10px; height: 300px; overflow-y: auto; white-space: pre-wrap; }
+    button { margin-top: 10px; padding: 10px 20px; background: #4caf50; border: none; color: white; cursor: pointer; }
+    button:disabled { background: #666; }
   </style>
 </head>
 <body>
-  <h2>Upload Image Folder</h2>
-  <div id="dropzone">Drag & Drop a Folder Here or Click to Select</div>
-  <input type="file" id="folderInput" webkitdirectory multiple hidden>
-  <button id="submitBtn" disabled>Upload</button>
-  <div style="background:#ccc;height:10px;width:100%;margin-top:10px;">
-    <div id="progressBar"></div>
-  </div>
-  <p id="status">Idle</p>
+  <h2>Drag & Drop Images Folder</h2>
+  <div id="dropzone">Drop files here or click to select</div>
+  <input type="file" id="fileInput" webkitdirectory directory multiple style="display:none">
+  <button id="uploadBtn">Upload & Process</button>
+  <h3>Log:</h3>
   <div id="log"></div>
 
   <script>
     const dropzone = document.getElementById('dropzone');
-    const folderInput = document.getElementById('folderInput');
-    const submitBtn = document.getElementById('submitBtn');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
     const log = document.getElementById('log');
-    const status = document.getElementById('status');
-    const progressBar = document.getElementById('progressBar');
-
-    const repoOwner = "ampedcoreglobal";
-    const repoName = "Image_Hosting_1";
-    const branch = "main";
-    const token = "YOUR_GITHUB_TOKEN"; // Replace with real token or serverless secret
-
     let files = [];
 
     function logMessage(msg) {
@@ -61,104 +34,36 @@
       log.scrollTop = log.scrollHeight;
     }
 
-    dropzone.addEventListener('click', () => folderInput.click());
-
-    dropzone.addEventListener('dragover', e => {
-      e.preventDefault();
-      dropzone.style.background = "#eef";
-    });
-
-    dropzone.addEventListener('dragleave', () => {
-      dropzone.style.background = "";
-    });
-
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.style.background = '#333'; });
+    dropzone.addEventListener('dragleave', () => dropzone.style.background = '#222');
     dropzone.addEventListener('drop', e => {
-      e.preventDefault();
-      files = [...e.dataTransfer.files];
-      submitBtn.disabled = !files.length;
-      dropzone.style.background = "";
-      status.innerText = `${files.length} files ready.`;
+      e.preventDefault(); files = [...e.dataTransfer.files];
+      logMessage(`📂 ${files.length} files ready`);
+    });
+    fileInput.addEventListener('change', () => {
+      files = [...fileInput.files];
+      logMessage(`📂 ${files.length} files selected`);
     });
 
-    folderInput.addEventListener('change', e => {
-      files = [...e.target.files];
-      submitBtn.disabled = !files.length;
-      status.innerText = `${files.length} files ready.`;
-    });
+    uploadBtn.addEventListener('click', async () => {
+      if (!files.length) return alert("No files selected.");
+      uploadBtn.disabled = true; logMessage("⬆️ Uploading files...");
 
-    submitBtn.addEventListener('click', async () => {
-      if (!files.length) return alert("No folder selected");
-      submitBtn.disabled = true;
-      status.innerText = "Uploading...";
-      log.innerText = "";
-      progressBar.style.width = "0%";
+      const formData = new FormData();
+      files.forEach(f => formData.append('files', f));
+      await fetch('/upload', { method: 'POST', body: formData });
+      logMessage("✅ Files uploaded. Starting processing...");
 
-      let count = 0;
-      let uploaded = 0;
-      let folders = {};
-
-      for (let file of files) {
-        if (file.name.startsWith('.') || file.name === '.DS_Store') {
-          logMessage(`[SKIP] ${file.webkitRelativePath}`);
-          continue;
-        }
-
-        count++;
-        const folderName = file.webkitRelativePath.split("/")[0];
-        if (!folders[folderName]) {
-          folders[folderName] = true;
-          logMessage(`\n📂 Processing folder: ${folderName}`);
-        }
-
-        // ✅ Log immediately like terminal
-        logMessage(`[UPLOAD] ${file.webkitRelativePath}`);
-
-        const arrayBuffer = await file.arrayBuffer();
-        const content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        const path = `source_images/${file.webkitRelativePath}`;
-
-        try {
-          await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`, {
-            method: "PUT",
-            headers: {
-              "Authorization": `token ${token}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              message: `Upload ${file.name}`,
-              content: content,
-              branch: branch
-            })
-          });
-
-          uploaded++;
-        } catch (err) {
-          logMessage(`❌ ERROR uploading ${file.name}: ${err}`);
-        }
-
-        let progress = Math.round((count / files.length) * 100);
-        progressBar.style.width = progress + "%";
-        status.innerText = `Uploading... ${count}/${files.length}`;
-
-        // ✅ Force UI update
-        await new Promise(r => setTimeout(r, 50));
+      const res = await fetch('/process', { method: 'POST' });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        logMessage(decoder.decode(value));
       }
-
-      logMessage(`\n📸 Uploaded ${uploaded} images for SKUs: ${Object.keys(folders).join(", ")}`);
-      status.innerText = `✅ Upload complete! ${uploaded} images.`;
-
-      // ✅ Trigger GitHub Action after upload
-      logMessage("\n🔄 Triggering GitHub Action to process images...");
-      await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
-        method: "POST",
-        headers: {
-          "Authorization": `token ${token}`,
-          "Accept": "application/vnd.github.everest-preview+json"
-        },
-        body: JSON.stringify({ event_type: "process-images" })
-      });
-      logMessage("✅ GitHub Action triggered.");
-      submitBtn.disabled = false;
+      uploadBtn.disabled = false;
     });
   </script>
 </body>
