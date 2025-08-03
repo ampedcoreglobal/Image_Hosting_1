@@ -150,6 +150,15 @@ def main():
     run_cmd("git fetch origin main")
     run_cmd("git reset --hard origin/main")
 
+    # ✅ Ensure images/ exists on remote
+    if not IMAGES_DIR.exists():
+        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        Path(IMAGES_DIR / ".gitkeep").touch()
+        run_cmd("git add images/.gitkeep")
+        run_cmd('git commit -m "Initialize images folder" || true')
+        run_cmd("git push origin main --force")
+        print("📂 Created images folder on remote.")
+
     print("📥 Preparing staging area...")
     reset_staging_area()
     copy_source_to_staging()
